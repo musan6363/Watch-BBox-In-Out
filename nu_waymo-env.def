@@ -1,0 +1,47 @@
+Bootstrap: docker
+From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+%environment
+	export CUDA_PATH=/usr/local/cuda
+	export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+%post
+    perl -p -i.bak -e 's%(deb(?:-src|)\s+)https?://(?!archive\.canonical\.com|security\.ubuntu\.com)[^\s]+%$1http://ftp.riken.jp/Linux/ubuntu/%' /etc/apt/sources.list
+
+	export DEBIAN_FRONTEND=noninteractive
+	export TZ=Asia/Tokyo
+	export CUDA_PATH=/usr/local/cuda
+	export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+    export LC_ALL=C
+
+	apt -y update
+	apt -y dist-upgrade
+	apt -y install wget git build-essential
+
+	# Python 3.7
+	apt-key adv --keyserver keyserver.ubuntu.com --recv f23c5a6cf475977595c89f51ba6932366a755776
+	echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu  jammy main " > /etc/apt/sources.list.d/python.list
+	echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu  jammy main" >> /etc/apt/sources.list.d/python.list
+	apt -y update
+	apt -y install python3.7-dev
+	apt -y install python3.7-distutils
+	cd /usr/bin
+	ln -s python3.7 python3
+	wget https://bootstrap.pypa.io/get-pip.py
+	python3 get-pip.py
+	rm get-pip.py
+
+	# Waymoのパッケージをインストール
+	pip install waymo-open-dataset-tf-2-6-0
+
+	# nuScenes絡み
+    pip install opencv-python
+	pip install opencv-contrib-python
+    pip install matplotlib scipy scikit-learn opencv-python numpy jupyterlab pandas seaborn sympy pydotplus
+	pip install nuscenes-devkit 
+
+	# 開発絡み
+	pip install ndjson jupyterlab
+
+%runscript
+	jupyter-lab --ip=0.0.0.0 --port=1257 --no-browser --NotebookApp.token='' --notebook-dir=/home0/murakamih/work/Watch-BBox-In-Out
