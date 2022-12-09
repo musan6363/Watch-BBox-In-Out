@@ -19,10 +19,10 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 	apt -y install wget git build-essential
 
 	# Python 3.7
-	#apt-key adv --keyserver keyserver.ubuntu.com --recv f23c5a6cf475977595c89f51ba6932366a755776
-	#echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main " > /etc/apt/sources.list.d/python.list
-	#echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main" >> /etc/apt/sources.list.d/python.list
-	#apt -y update
+	apt-key adv --keyserver keyserver.ubuntu.com --recv f23c5a6cf475977595c89f51ba6932366a755776
+	echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu  jammy main " > /etc/apt/sources.list.d/python.list
+	echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu  jammy main" >> /etc/apt/sources.list.d/python.list
+	apt -y update
 	apt -y install python3.7-dev
 	apt -y install python3.7-distutils
 	cd /usr/bin
@@ -32,24 +32,16 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 	rm get-pip.py
 
 	# Waymoのパッケージをインストール
-	pip3 install waymo-open-dataset-tf-2-6-0
-	#pip3 install waymo-open-dataset-tf-2-5-0
-	#pip3 install waymo-open-dataset-tf-2-4-0
-
-	# Waymoのパッケージをインストール
-	pip3 install waymo-open-dataset-tf-2-6-0
+	pip install waymo-open-dataset-tf-2-6-0
 
 	# nuScenes絡み
-    apt install -y libpng-dev libjpeg-dev libtiff-dev
-    apt install -y libopencv-dev
-    pip3 install opencv-python
-	pip3 install opencv-contrib-python
-    pip3 install --upgrade pip setuptools
-    pip3 install matplotlib scipy scikit-learn opencv-python numpy jupyterlab pandas seaborn sympy pydotplus
-	pip3 install nuscenes-devkit 
+    pip install opencv-python
+	pip install opencv-contrib-python
+    pip install matplotlib scipy scikit-learn opencv-python numpy jupyterlab pandas seaborn sympy pydotplus
+	pip install nuscenes-devkit 
 
 	# 開発絡み
-	pip3 install ndjson jupyterlab
+	pip install ndjson jupyterlab
 
 %runscript
 	jupyter-lab --ip=0.0.0.0 --port=1257 --no-browser --NotebookApp.token='' --notebook-dir=/home0/murakamih/work/Watch-BBox-In-Out
