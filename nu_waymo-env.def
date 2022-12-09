@@ -14,17 +14,17 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 	export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     export LC_ALL=C
 
-	apt-get -y update
-	apt-get -y dist-upgrade
-	apt-get -y install wget git build-essential
+	apt -y update
+	apt -y dist-upgrade
+	apt -y install wget git build-essential
 
 	# Python 3.7
-	apt-key adv --keyserver keyserver.ubuntu.com --recv f23c5a6cf475977595c89f51ba6932366a755776
-	echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main " > /etc/apt/sources.list.d/python.list
-	echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main" >> /etc/apt/sources.list.d/python.list
-	apt-get -y update
-	apt-get -y install python3.7-dev
-	apt-get -y install python3.7-distutils
+	#apt-key adv --keyserver keyserver.ubuntu.com --recv f23c5a6cf475977595c89f51ba6932366a755776
+	#echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main " > /etc/apt/sources.list.d/python.list
+	#echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main" >> /etc/apt/sources.list.d/python.list
+	#apt -y update
+	apt -y install python3.7-dev
+	apt -y install python3.7-distutils
 	cd /usr/bin
 	ln -s python3.7 python3
 	wget https://bootstrap.pypa.io/get-pip.py
@@ -52,4 +52,4 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 	pip3 install ndjson
 
 %runscript
-	jupyter-lab --ip=0.0.0.0 --port=1257 --no-browser --NotebookApp.token='' --notebook-dir=/home0/murakamih/work/nuScenes
+	jupyter-lab --ip=0.0.0.0 --port=1257 --no-browser --NotebookApp.token='' --notebook-dir=/home0/murakamih/work/Watch-BBox-In-Out
