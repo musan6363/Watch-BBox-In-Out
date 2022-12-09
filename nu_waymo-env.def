@@ -49,7 +49,7 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 	pip3 install nuscenes-devkit 
 
 	# 開発絡み
-	pip3 install ndjson
+	pip3 install ndjson jupyterlab
 
 %runscript
 	jupyter-lab --ip=0.0.0.0 --port=1257 --no-browser --NotebookApp.token='' --notebook-dir=/home0/murakamih/work/Watch-BBox-In-Out
