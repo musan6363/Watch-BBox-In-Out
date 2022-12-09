@@ -1,8 +1,13 @@
+import argparse
 from glob import glob
 import uuid
+import json
+import ndjson
+from os import path as osp
 
 FRAME_SIZE = (1980, 1200)  # nuImages
 N_ANNOTATE = 3
+ANN_DATA_PATH = "/home0/murakamih/annotation/v221130/nuimages_ped_1017/v1.0-train/json"
 
 class GazeTargetObject:
     def __init__(self, token: str, bbox: list, category: str) -> None:
@@ -42,8 +47,32 @@ class Pedestrian:
             self.gaze.append(gp)
         return self.gaze
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Count what look the gaze point')
+    parser.add_argument('ann_json', help='ex) /home0/murakamih/annotation/v221205/nuimages_ped_1017/v1.0-train/json')
+    parser.add_argument('save_dir', help='ex) ./output')
+    _args = parser.parse_args()
+    return _args
+
+def read_ndjson(path: str) -> list:
+    with open(path, 'r') as f:
+        _ndj = ndjson.load(f)
+        _tmp = json.dumps(_ndj)
+        _data = json.loads(_tmp)
+    return _data
+
 def main():
-    pass
+    args = parse_args()
+    ann_jsons = glob(args.ann_json+"/*.json")
+    dataset_name = args.ann_json.split('/')[-3]
+    version_name = args.ann_json.split('/')[-2]
+    for ann_json in ann_jsons:
+        image_token = osp.splitext(osp.basename(ann_json))[0]
+        print(dataset_name, version_name, image_token)
+        records = read_ndjson(ann_json)
+        for record in records:
+            print(record)
+        break
 
 if __name__ == "__main__":
     main()
