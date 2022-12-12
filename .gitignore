@@ -1,5 +1,7 @@
 # User
 *.sif
+*.code-workspace
+output/
 
 # ---> macOS
 # General
