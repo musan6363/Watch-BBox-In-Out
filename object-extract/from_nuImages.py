@@ -26,7 +26,11 @@ class ObjectAnn:
         return category['name']
 
     def is_ped(self) -> bool:
-        return self.category[:16] == "human.pedestrian"
+        if self.category[:16] == "human.pedestrian":
+            ped_height = self.bbox[3] - self.bbox[1]
+            if ped_height >= 200:
+                return True
+        return False
 
 class SampleData:
     '''
