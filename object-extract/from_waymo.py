@@ -20,7 +20,7 @@ class ObjectAnn:
     '''
     データセット内でアノテーションされた各オブジェクトに相当
     '''
-    def __init__(self, token, category_token: int, bbox: open_dataset.label_pb2.Box, camera_direction: int) -> None:
+    def __init__(self, token, category_token: int, bbox, camera_direction: int) -> None:
         self.token = token
         self.category = self._get_category_name(category_token)
         self.bbox = self._get_bbox_loc(bbox, camera_direction)
@@ -28,7 +28,7 @@ class ObjectAnn:
     def _get_category_name(self, catogory_token: int) -> str:
         return label_pb2.Label.Type.Name(catogory_token)
 
-    def _get_bbox_loc(self, box: open_dataset.label_pb2.Box, camera_direction: int) -> list:
+    def _get_bbox_loc(self, box, camera_direction: int) -> list:
         _bbox_begin_x = box.center_x - 0.5 * box.length
         _bbox_begin_y = box.center_y - 0.5 * box.width
         _bbox_end_x = _bbox_begin_x + box.length
@@ -51,7 +51,7 @@ class CameraLabels:
         self.obj = []
         self.frame = frame
 
-    def append_obj(self, ann_label: open_dataset.label_pb2.Label, camera_direction: int) -> None:
+    def append_obj(self, ann_label: label_pb2.Label, camera_direction: int) -> None:
         obj = ObjectAnn(ann_label.id, ann_label.type, ann_label.box, camera_direction)
         self.obj.append(obj)
 
@@ -81,7 +81,7 @@ def main():
     for tfrecord in tqdm(tfrecords, "tfrecord : "):
         dataset = tf.data.TFRecordDataset(tfrecord, compression_type='')
         cnt_frame = 0
-        for data in tqdm(dataset, "dataset : "): 
+        for data in tqdm(dataset, "dataset : ", leave=False): 
             if cnt_frame % 50 != 0:
                 # 50frame(=5s)ごとに書き出し
                 cnt_frame += 1
