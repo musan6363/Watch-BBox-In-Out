@@ -35,8 +35,10 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 	pip install waymo-open-dataset-tf-2-6-0
 
 	# nuScenes絡み
-    pip install opencv-python
-	pip install opencv-contrib-python
+	apt install -y libpng-dev libjpeg-dev libtiff-dev
+	apt install -y libglib2.0-0 libsm6 libxrender1 libxext6
+	pip install opencv-python-headless
+	pip install opencv-contrib-python-headless
     pip install matplotlib scipy scikit-learn opencv-python numpy jupyterlab pandas seaborn sympy pydotplus
 	pip install nuscenes-devkit 
 
