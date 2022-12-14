@@ -6,6 +6,7 @@ import json
 import ndjson
 from os import path as osp
 import statistics
+import sys
 
 FRAME_SIZE = (1980, 1200)  # nuImages
 N_ANNOTATE = 3
@@ -61,8 +62,10 @@ class Pedestrian:
         self.gto = []
 
     def set_gaze_point(self, look: list, difficult: list, eyecontact: list) -> None:
-        for i in N_ANNOTATE:
-            gp = GazePoint(self.token, self.frame_token, tuple(look[i]), difficult[i], eyecontact[i])
+        for i in range(N_ANNOTATE):
+            if len(look[i]) == 0 or difficult[i] == "" or eyecontact[i] == "":
+                continue
+            gp = GazePoint(self.token, self.frame_token, tuple(look[i]), convert_bool_flag(difficult[i]), convert_bool_flag(eyecontact[i]))
             self.gaze.append(gp)
 
     def add_gto(self, gto: GazeTargetObject) -> None:
@@ -96,10 +99,19 @@ class Frame:
             for gaze in ped.gaze:
                 if gaze.is_eyecontact:
                     self.looking_eyecontact += 1
+                    continue
                 if gaze.is_inside_frame:
                     self.looking_inside_frame += 1
                 if gaze.is_inside_object:
                     self.looking_inside_obj += 1
+
+def convert_bool_flag(b: str) -> bool:
+    if b == 'true':
+        return True
+    elif b == 'false':
+        return False
+    else:
+        raise ValueError(b)
 
 def read_ndjson(path: str) -> list:
     with open(path, 'r') as f:
@@ -117,6 +129,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('ped_ann', help='ex) ~/annotation/v221130/nuimages_ped_1017/v1.0-mini/json', type=str)
     parser.add_argument('obj_dataset', help='ex) ~/work/Watch-BBox-In-Out/object-extract/output/nuImages/v1.0-mini', type=str)
+    parser.add_argument('--not_use', help='ex) ~/annotation/v221130/nuimages_ped_1017/v1.0-train/notuse.json', type=str)
     args = parser.parse_args()
     return args
 
@@ -132,20 +145,36 @@ def check_looking(peds: list, obj: GazeTargetObject) -> None:
 
 def main():
     args = parse_args()
-    
+
+
+    not_use_frame = {}
+    if args.not_use:
+        not_use = read_json(args.not_use)
+        for nu in not_use:
+            frame = nu['img_token']
+            if not frame in not_use_frame.keys():
+                not_use_frame[frame] = []
+            not_use_frame[frame].append(nu['ped_token'])
+
     frames = {}
     for ped_record in tqdm(glob(args.ped_ann + '/*.json'), "running record..."):
         frame_id = osp.splitext(osp.basename(ped_record))[0]
         frame = Frame(frame_id)
 
+        # not useレコードの照会
+        not_use_ped = []
+        if frame_id in not_use_frame.keys():
+            not_use_ped = not_use_frame[frame_id]
+
         # 歩行者の登録
         ped_annotations: list = read_ndjson(ped_record)
         ped_annotation: dict
         for ped_annotation in ped_annotations:
+            if ped_annotation['token'] in not_use_ped:
+                continue
             ped = Pedestrian(ped_annotation['token'], frame_id, ped_annotation['bbox'])
             ped.set_gaze_point(ped_annotation['look'], ped_annotation['difficult'], ped_annotation['eyecontact'])
             frame.add_ped(ped)
-
         # オブジェクトの登録
         dataset_objects: dict = read_json(args.obj_dataset + '/' + frame_id + '.json')
         object_token: str
@@ -165,6 +194,7 @@ def main():
     cnt_looking_eyecontact = []
     cnt_looking_inside_frame = []
     cnt_looking_inside_obj = []
+    cnt_gaze_points = 0
     frame: Frame
     for frame in tqdm(frames.values(), "statistics..."):
         cnt_peds.append(len(frame.peds))
@@ -172,15 +202,17 @@ def main():
         cnt_looking_eyecontact.append(frame.looking_eyecontact)
         cnt_looking_inside_frame.append(frame.looking_inside_frame)
         cnt_looking_inside_obj.append(frame.looking_inside_obj)
+        ped: Pedestrian
+        for ped in frame.peds:
+            cnt_gaze_points += len(ped.gaze)
     print(f"歩行者総数 -> {sum(cnt_peds)}")
-    print(f"フレームあたりの歩行者数 -> {statistics.mean(cnt_peds)}±{statistics.stdev(cnt_peds)}")
+    print(f"フレームあたりの歩行者数 -> {statistics.mean(cnt_peds):.02f} \u00B1 {statistics.stdev(cnt_peds):.02f}")
     print(f"オブジェクト総数 -> {sum(cnt_objs)}")
-    print(f"フレームあたりのオブジェクト数 -> {statistics.mean(cnt_objs)}±{statistics.stdev(cnt_objs)}")
-    cnt_gaze_points = sum(cnt_peds)*3
+    print(f"フレームあたりのオブジェクト数 -> {statistics.mean(cnt_objs):.02f} \u00B1 {statistics.stdev(cnt_objs):.02f}")
     print(f"総アノテーション点数 -> {cnt_gaze_points}")
-    print(f"アイコンタクト点数 -> {cnt_looking_eyecontact}({cnt_looking_eyecontact*100/cnt_gaze_points}%)")
-    print(f"フレーム内を見ている点数 -> {cnt_looking_inside_frame}({cnt_looking_inside_frame*100/cnt_gaze_points}%)")
-    print(f"オブジェクト内を見ている点数 -> {cnt_looking_inside_obj}({cnt_looking_inside_obj*100/cnt_gaze_points}%)")
+    print(f"アイコンタクト点数 -> {sum(cnt_looking_eyecontact)}({(sum(cnt_looking_eyecontact)*100/cnt_gaze_points):.02f}%)")
+    print(f"フレーム内を見ている点数 -> {sum(cnt_looking_inside_frame)}({(sum(cnt_looking_inside_frame)*100/cnt_gaze_points):.02f}%)")
+    print(f"オブジェクト内を見ている点数 -> {sum(cnt_looking_inside_obj)}({(sum(cnt_looking_inside_obj)*100/cnt_gaze_points):.02f}%)")
 
 if __name__ == "__main__":
     main()
