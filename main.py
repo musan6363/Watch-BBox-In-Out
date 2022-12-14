@@ -8,7 +8,8 @@ from os import path as osp
 import statistics
 import sys
 
-FRAME_SIZE = (1980, 1200)  # nuImages
+# FRAME_SIZE = (1980, 1200)  # nuImages
+FRAME_SIZE = (1920*3, 1280)  # Waymo
 N_ANNOTATE = 3
 
 class GazeTargetObject:
@@ -83,6 +84,7 @@ class Frame:
 
         # 統計情報
         self.looking_eyecontact = 0
+        self.looking_difficult = 0
         self.looking_inside_frame = 0
         self.looking_inside_obj = 0
     
@@ -100,6 +102,8 @@ class Frame:
                 if gaze.is_eyecontact:
                     self.looking_eyecontact += 1
                     continue
+                if gaze.is_difficult:
+                    self.looking_difficult += 1
                 if gaze.is_inside_frame:
                     self.looking_inside_frame += 1
                 if gaze.is_inside_object:
@@ -192,6 +196,7 @@ def main():
     cnt_peds = []
     cnt_objs = []
     cnt_looking_eyecontact = []
+    cnt_looking_difficult = []
     cnt_looking_inside_frame = []
     cnt_looking_inside_obj = []
     cnt_gaze_points = 0
@@ -200,6 +205,7 @@ def main():
         cnt_peds.append(len(frame.peds))
         cnt_objs.append(len(frame.objects))
         cnt_looking_eyecontact.append(frame.looking_eyecontact)
+        cnt_looking_difficult.append(frame.looking_difficult)
         cnt_looking_inside_frame.append(frame.looking_inside_frame)
         cnt_looking_inside_obj.append(frame.looking_inside_obj)
         ped: Pedestrian
@@ -213,6 +219,7 @@ def main():
         print(f"フレームあたりのオブジェクト数 -> {statistics.mean(cnt_objs):.02f} \u00B1 {statistics.stdev(cnt_objs):.02f}")
     print(f"総アノテーション点数 -> {cnt_gaze_points}({(cnt_gaze_points*100/(sum(cnt_peds)*3)):.02f}%)")
     print(f"アイコンタクト点数 -> {sum(cnt_looking_eyecontact)}({(sum(cnt_looking_eyecontact)*100/cnt_gaze_points):.02f}%)")
+    print(f"difficult点数 -> {sum(cnt_looking_difficult)}({(sum(cnt_looking_difficult)*100/cnt_gaze_points):.02f}%)")
     print(f"フレーム内を見ている点数 -> {sum(cnt_looking_inside_frame)}({(sum(cnt_looking_inside_frame)*100/cnt_gaze_points):.02f}%)")
     print(f"オブジェクト内を見ている点数 -> {sum(cnt_looking_inside_obj)}({(sum(cnt_looking_inside_obj)*100/cnt_gaze_points):.02f}%)")
 
