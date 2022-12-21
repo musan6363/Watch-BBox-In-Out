@@ -137,14 +137,23 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def check_looking(peds: list, obj: GazeTargetObject) -> None:
+def check_looking(peds: list, obj: GazeTargetObject) -> tuple:
+    dupulicated_double = 0
+    dupulicated_triple = 0
     ped: Pedestrian
     for ped in peds:
+        tmp_cnt_dupulicated = 0
         gp: GazePoint
         for gp in ped.gaze:
             is_looking = gp.add_gto(obj)  # 各アノテーション点がobjを見ているか調査．見ていればリストに追加してTrueを返す．
             if is_looking:
+                tmp_cnt_dupulicated += 1
                 ped.add_gto(obj)
+        if tmp_cnt_dupulicated == 2:
+            dupulicated_double += 1
+        elif tmp_cnt_dupulicated == 3:
+            dupulicated_triple += 1
+    return dupulicated_double, dupulicated_triple
 
 
 def main():
@@ -161,6 +170,8 @@ def main():
             not_use_frame[frame].append(nu['ped_token'])
 
     frames = {}
+    duplicated_double = 0
+    duplicated_triple = 0
     for ped_record in tqdm(glob(args.ped_ann + '/*.json'), "running record..."):
         frame_id = osp.splitext(osp.basename(ped_record))[0]
         frame = Frame(frame_id)
@@ -186,7 +197,9 @@ def main():
         for object_token, dataset_object in dataset_objects.items():
             obj = GazeTargetObject(object_token, dataset_object['bbox'], dataset_object['category'])
             frame.add_obj(obj)
-            check_looking(frame.peds, obj)  # オブジェクトを各視点が見ているか確認し，格納
+            double, triple = check_looking(frame.peds, obj)  # オブジェクトを各視点が見ているか確認し，格納
+            duplicated_double += double
+            duplicated_triple += triple
 
         # frameごとの統計情報
         frame.stat()
@@ -200,6 +213,7 @@ def main():
     cnt_looking_inside_frame = []
     cnt_looking_inside_obj = []
     cnt_gaze_points = 0
+    cnt_gaze_looking_duplicated = 0
     frame: Frame
     for frame in tqdm(frames.values(), "statistics..."):
         cnt_peds.append(len(frame.peds))
@@ -211,6 +225,10 @@ def main():
         ped: Pedestrian
         for ped in frame.peds:
             cnt_gaze_points += len(ped.gaze)
+            gaze: GazePoint
+            for gaze in ped.gaze:
+                if len(gaze.gto) >= 2:
+                    cnt_gaze_looking_duplicated += 1
     print(f"歩行者総数 -> {sum(cnt_peds)}")
     if len(cnt_peds) > 1:
         print(f"フレームあたりの歩行者数 -> {statistics.mean(cnt_peds):.02f} \u00B1 {statistics.stdev(cnt_peds):.02f}")
@@ -222,6 +240,9 @@ def main():
     print(f"difficult点数 -> {sum(cnt_looking_difficult)}({(sum(cnt_looking_difficult)*100/cnt_gaze_points):.02f}%)")
     print(f"フレーム内を見ている点数 -> {sum(cnt_looking_inside_frame)}({(sum(cnt_looking_inside_frame)*100/cnt_gaze_points):.02f}%)")
     print(f"オブジェクト内を見ている点数 -> {sum(cnt_looking_inside_obj)}({(sum(cnt_looking_inside_obj)*100/cnt_gaze_points):.02f}%)")
+    print(f"2人が同じオブジェクトを選択したケース(3人と重複なし) -> {duplicated_double}オブジェクト({(duplicated_double*100/sum(cnt_objs)):.02f}%)")
+    print(f"3人が同じオブジェクトを選択したケース -> {duplicated_triple}オブジェクト({(duplicated_triple*100/sum(cnt_objs)):.02f}%)")
+    print(f"1つの視点が複数のオブジェクト領域内にある数 -> {cnt_gaze_looking_duplicated}点({(cnt_gaze_looking_duplicated*100/cnt_gaze_points):.02f}%)")
 
 if __name__ == "__main__":
     main()
