@@ -8,8 +8,8 @@ from os import path as osp
 import statistics
 import sys
 
-# FRAME_SIZE = (1980, 1200)  # nuImages
-FRAME_SIZE = (1920*3, 1280)  # Waymo
+FRAME_SIZE = (1980, 1200)  # nuImages
+# FRAME_SIZE = (1920*3, 1280)  # Waymo
 N_ANNOTATE = 3
 
 class GazeTargetObject:
@@ -159,7 +159,6 @@ def check_looking(peds: list, obj: GazeTargetObject) -> tuple:
 def main():
     args = parse_args()
 
-
     not_use_frame = {}
     if args.not_use:
         not_use = read_json(args.not_use)
@@ -182,12 +181,12 @@ def main():
             not_use_ped = not_use_frame[frame_id]
 
         # 歩行者の登録
-        ped_annotations: list = read_ndjson(ped_record)
+        ped_annotations: list = read_json(ped_record)
         ped_annotation: dict
-        for ped_annotation in ped_annotations:
-            if ped_annotation['token'] in not_use_ped:
+        for ped_token, ped_annotation in ped_annotations.items():
+            if ped_token in not_use_ped:
                 continue
-            ped = Pedestrian(ped_annotation['token'], frame_id, ped_annotation['bbox'])
+            ped = Pedestrian(ped_token, frame_id, ped_annotation['bbox'])
             ped.set_gaze_point(ped_annotation['look'], ped_annotation['difficult'], ped_annotation['eyecontact'])
             frame.add_ped(ped)
         # オブジェクトの登録
