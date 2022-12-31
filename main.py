@@ -65,6 +65,7 @@ class Pedestrian:
         self.gaze = []
         self.gto = None
         self.gto_candidate = []
+        self.looking_outside_cnt = 0
 
     def set_gaze_point(self, look: list, difficult: list, eyecontact: list) -> None:
         for i in range(N_ANNOTATE):
@@ -72,6 +73,7 @@ class Pedestrian:
                 continue
             gp = GazePoint(self.token, self.frame_token, tuple(look[i]), convert_bool_flag(difficult[i]), convert_bool_flag(eyecontact[i]))
             self.gaze.append(gp)
+            self.looking_outside_cnt += 1 if not (gp.is_eyecontact or gp.is_inside_frame) else 0
 
     def add_gto(self, gto: GazeTargetObject) -> None:
         '''
@@ -175,25 +177,51 @@ def check_looking(peds: list, obj: GazeTargetObject) -> tuple:
             dupulicated_triple += 1
     return dupulicated_double, dupulicated_triple
 
+def calc_center(coord: list) -> list:
+    center_coord = [0, 0]
+    for c in coord:
+        center_coord[0] += c[0]
+        center_coord[1] += c[1]
+    center_coord = [center_coord[0]/len(coord), center_coord[1]/len(coord)]
+    return center_coord
+
 def export_ped_obj_set(frames: list, output_dir: str) -> None:
-    cnt_ped = 0
+    cnt_out_ped = 0
+    cnt_obj_ped = 0
     frame: Frame
     for frame in tqdm(frames.values(), "export obj set"):
         dst = {}
         ped: Pedestrian
         for ped in frame.peds:
+            if ped.looking_outside_cnt > 1:
+                _outside_coords = []
+                gp: GazePoint
+                for gp in ped.gaze:
+                    if gp.is_inside_frame:
+                        continue
+                    _outside_coords.append(gp.loc)
+                outside_coord_avg = calc_center(_outside_coords)
+                dst[ped.token] = {
+                    'bbox' : ped.bbox,
+                    'looking' : "Outside",
+                    'loc' : outside_coord_avg
+                }
+                cnt_out_ped += 1
+                continue
             if ped.gto is None:
                 continue
             dst[ped.token] = {
                 'bbox' : ped.bbox,
+                'looking' : "Object",
                 'gto_bbox' : ped.gto.bbox,
                 'gto_center' : ped.gto.center,
                 'gto_category' : ped.gto.category
             }
-            cnt_ped += 1
+            cnt_obj_ped += 1
         if dst != {}:
             export_json(dst, output_dir+'/'+frame.token+'.json')
-    print(f"見ているオブジェクトが特定できた歩行者は{cnt_ped}人")
+    print(f"画像外を見ていた歩行者は{cnt_out_ped}人")
+    print(f"見ているオブジェクトが特定できた歩行者は{cnt_obj_ped}人")
 
 def main():
     args = parse_args()
