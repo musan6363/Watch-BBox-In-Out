@@ -3,6 +3,7 @@
 *.code-workspace
 output/
 run.sh
+annotation
 
 # ---> macOS
 # General
