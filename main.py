@@ -5,6 +5,7 @@ import uuid
 import json
 import ndjson
 from os import path as osp
+import os
 import statistics
 import sys
 
@@ -17,6 +18,8 @@ class GazeTargetObject:
         self.token = token
         self.bbox = bbox  # [left-top-x, left-top-y, right-bottom-x, right-bottom-y]
         self.category = category
+        self.area = (bbox[2]-bbox[0])*(bbox[3]-bbox[1])
+        self.center = [(bbox[2]+bbox[0])/2, (bbox[3]+bbox[1])/2]
 
     def is_inside(self, coord: tuple) -> bool:
         if self.bbox[0] <= coord[0] <= self.bbox[2] and self.bbox[1] <= coord[1] <= self.bbox[3]:
@@ -60,7 +63,8 @@ class Pedestrian:
         self.frame_token = frame_token
         self.bbox = bbox
         self.gaze = []
-        self.gto = []
+        self.gto = None
+        self.gto_candidate = []
 
     def set_gaze_point(self, look: list, difficult: list, eyecontact: list) -> None:
         for i in range(N_ANNOTATE):
@@ -71,10 +75,16 @@ class Pedestrian:
 
     def add_gto(self, gto: GazeTargetObject) -> None:
         '''
-        現状はGazePoint内のgtoと変わらない
-        将来的に，difficultフラグや多数決を経て，そのpedが見ている代表オブジェクトを決定した上で格納したい
+        2人以上が見ていると判断したオブジェクトを選択
+        2つ以上のオブジェクトが選択される場合，面積の小さいオブジェクトを優先
         '''
-        self.gto.append(gto)
+        self.gto_candidate.append(gto)
+        _current_gto: GazeTargetObject
+        _current_gto = self.gto
+        if _current_gto is not None:
+            if _current_gto.area < gto.area:
+                return
+        self.gto = gto
 
 class Frame:
     def __init__(self, token: str) -> None:
@@ -87,6 +97,7 @@ class Frame:
         self.looking_difficult = 0
         self.looking_inside_frame = 0
         self.looking_inside_obj = 0
+        self.looking_multi_obj = []
     
     def add_ped(self, ped: Pedestrian) -> None:
         self.peds.append(ped)
@@ -108,6 +119,9 @@ class Frame:
                     self.looking_inside_frame += 1
                 if gaze.is_inside_object:
                     self.looking_inside_obj += 1
+            if len(ped.gto_candidate) > 1:
+                self.looking_multi_obj.append(ped.token)
+
 
 def convert_bool_flag(b: str) -> bool:
     if b == 'true':
@@ -128,12 +142,17 @@ def read_json(path: str) -> list:
     with open(path, 'r') as f:
         _data = json.load(f)
     return _data
+
+def export_json(dst: dict, path: str) -> None:
+    with open(path, 'w') as f:
+        json.dump(dst, f, indent=2)
     
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('ped_ann', help='ex) ~/annotation/v221130/nuimages_ped_1017/v1.0-mini/json', type=str)
     parser.add_argument('obj_dataset', help='ex) ~/work/Watch-BBox-In-Out/object-extract/output/nuImages/v1.0-mini', type=str)
     parser.add_argument('--not_use', help='ex) ~/annotation/v221130/nuimages_ped_1017/v1.0-train/notuse.json', type=str)
+    parser.add_argument('--output', help='ex) output/nuimages_ped_1017/v1.0-mini', type=str, default='output')
     args = parser.parse_args()
     return args
 
@@ -148,13 +167,33 @@ def check_looking(peds: list, obj: GazeTargetObject) -> tuple:
             is_looking = gp.add_gto(obj)  # 各アノテーション点がobjを見ているか調査．見ていればリストに追加してTrueを返す．
             if is_looking:
                 tmp_cnt_dupulicated += 1
-                ped.add_gto(obj)
+        if tmp_cnt_dupulicated >= 2:
+            ped.add_gto(obj)
         if tmp_cnt_dupulicated == 2:
             dupulicated_double += 1
         elif tmp_cnt_dupulicated == 3:
             dupulicated_triple += 1
     return dupulicated_double, dupulicated_triple
 
+def export_ped_obj_set(frames: list, output_dir: str) -> None:
+    cnt_ped = 0
+    frame: Frame
+    for frame in tqdm(frames.values(), "export obj set"):
+        dst = {}
+        ped: Pedestrian
+        for ped in frame.peds:
+            if ped.gto is None:
+                continue
+            dst[ped.token] = {
+                'bbox' : ped.bbox,
+                'gto_bbox' : ped.gto.bbox,
+                'gto_center' : ped.gto.center,
+                'gto_category' : ped.gto.category
+            }
+            cnt_ped += 1
+        if dst != {}:
+            export_json(dst, output_dir+'/'+frame.token+'.json')
+    print(f"見ているオブジェクトが特定できた歩行者は{cnt_ped}人")
 
 def main():
     args = parse_args()
@@ -204,6 +243,9 @@ def main():
         frame.stat()
         frames[frame_id] = frame
 
+    os.makedirs(args.output, exist_ok=True)
+    export_ped_obj_set(frames, args.output)
+
     # 統計情報の表示
     cnt_peds = []
     cnt_objs = []
@@ -213,6 +255,8 @@ def main():
     cnt_looking_inside_obj = []
     cnt_gaze_points = 0
     cnt_gaze_looking_duplicated = 0
+    looking_multi_obj = []
+    lmo = {}
     frame: Frame
     for frame in tqdm(frames.values(), "statistics..."):
         cnt_peds.append(len(frame.peds))
@@ -221,6 +265,9 @@ def main():
         cnt_looking_difficult.append(frame.looking_difficult)
         cnt_looking_inside_frame.append(frame.looking_inside_frame)
         cnt_looking_inside_obj.append(frame.looking_inside_obj)
+        if len(frame.looking_multi_obj) > 0:
+            looking_multi_obj.extend([token+'@'+frame.token for token in frame.looking_multi_obj])
+            lmo[frame.token] = frame.looking_multi_obj
         ped: Pedestrian
         for ped in frame.peds:
             cnt_gaze_points += len(ped.gaze)
@@ -242,6 +289,8 @@ def main():
     print(f"2人が同じオブジェクトを選択したケース(3人と重複なし) -> {duplicated_double}オブジェクト({(duplicated_double*100/sum(cnt_objs)):.02f}%)")
     print(f"3人が同じオブジェクトを選択したケース -> {duplicated_triple}オブジェクト({(duplicated_triple*100/sum(cnt_objs)):.02f}%)")
     print(f"1つの視点が複数のオブジェクト領域内にある数 -> {cnt_gaze_looking_duplicated}点({(cnt_gaze_looking_duplicated*100/cnt_gaze_points):.02f}%)")
+    print(f"2つ以上のオブジェクトが多数決で見ていると判断された数 -> {len(looking_multi_obj)}個")
+    export_json(lmo, args.output+'/looking_multi_obj.json')
 
 if __name__ == "__main__":
     main()
