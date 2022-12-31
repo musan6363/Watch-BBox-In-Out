@@ -19,6 +19,7 @@ class GazeTargetObject:
         self.bbox = bbox  # [left-top-x, left-top-y, right-bottom-x, right-bottom-y]
         self.category = category
         self.area = (bbox[2]-bbox[0])*(bbox[3]-bbox[1])
+        self.center = [(bbox[2]+bbox[0])/2, (bbox[3]+bbox[1])/2]
 
     def is_inside(self, coord: tuple) -> bool:
         if self.bbox[0] <= coord[0] <= self.bbox[2] and self.bbox[1] <= coord[1] <= self.bbox[3]:
@@ -174,6 +175,25 @@ def check_looking(peds: list, obj: GazeTargetObject) -> tuple:
             dupulicated_triple += 1
     return dupulicated_double, dupulicated_triple
 
+def export_ped_obj_set(frames: list, output_dir: str) -> None:
+    cnt_ped = 0
+    frame: Frame
+    for frame in tqdm(frames.values(), "export obj set"):
+        dst = {}
+        ped: Pedestrian
+        for ped in frame.peds:
+            if ped.gto is None:
+                continue
+            dst[ped.token] = {
+                'bbox' : ped.bbox,
+                'gto_bbox' : ped.gto.bbox,
+                'gto_center' : ped.gto.center,
+                'gto_category' : ped.gto.category
+            }
+            cnt_ped += 1
+        if dst != {}:
+            export_json(dst, output_dir+'/'+frame.token+'.json')
+    print(f"見ているオブジェクトが特定できた歩行者は{cnt_ped}人")
 
 def main():
     args = parse_args()
@@ -223,6 +243,9 @@ def main():
         frame.stat()
         frames[frame_id] = frame
 
+    os.makedirs(args.output, exist_ok=True)
+    export_ped_obj_set(frames, args.output)
+
     # 統計情報の表示
     cnt_peds = []
     cnt_objs = []
@@ -267,7 +290,6 @@ def main():
     print(f"3人が同じオブジェクトを選択したケース -> {duplicated_triple}オブジェクト({(duplicated_triple*100/sum(cnt_objs)):.02f}%)")
     print(f"1つの視点が複数のオブジェクト領域内にある数 -> {cnt_gaze_looking_duplicated}点({(cnt_gaze_looking_duplicated*100/cnt_gaze_points):.02f}%)")
     print(f"2つ以上のオブジェクトが多数決で見ていると判断された数 -> {len(looking_multi_obj)}個")
-    os.makedirs(args.output, exist_ok=True)
     export_json(lmo, args.output+'/looking_multi_obj.json')
 
 if __name__ == "__main__":
