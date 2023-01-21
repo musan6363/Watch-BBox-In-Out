@@ -2,6 +2,8 @@
 *.sif
 *.code-workspace
 output/
+output0121/
+ouput0121/
 run.sh
 annotation
 

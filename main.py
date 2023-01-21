@@ -238,38 +238,40 @@ def main():
     frames = {}
     duplicated_double = 0
     duplicated_triple = 0
-    for ped_record in tqdm(glob(args.ped_ann + '/*.json'), "running record..."):
-        frame_id = osp.splitext(osp.basename(ped_record))[0]
-        frame = Frame(frame_id)
+    for version in tqdm(glob(args.ped_ann + '/*'), "running record..."):
+        version_name = version.split('/')[-1]
+        for ped_record in tqdm(glob(version + '/*.json'), "running record..."):
+            frame_id = osp.splitext(osp.basename(ped_record))[0]
+            frame = Frame(frame_id)
 
-        # not useレコードの照会
-        not_use_ped = []
-        if frame_id in not_use_frame.keys():
-            not_use_ped = not_use_frame[frame_id]
+            # not useレコードの照会
+            not_use_ped = []
+            if frame_id in not_use_frame.keys():
+                not_use_ped = not_use_frame[frame_id]
 
-        # 歩行者の登録
-        ped_annotations: list = read_json(ped_record)
-        ped_annotation: dict
-        for ped_token, ped_annotation in ped_annotations.items():
-            if ped_token in not_use_ped:
-                continue
-            ped = Pedestrian(ped_token, frame_id, ped_annotation['bbox'])
-            ped.set_gaze_point(ped_annotation['look'], ped_annotation['difficult'], ped_annotation['eyecontact'])
-            frame.add_ped(ped)
-        # オブジェクトの登録
-        dataset_objects: dict = read_json(args.obj_dataset + '/' + frame_id + '.json')
-        object_token: str
-        dataset_object: dict
-        for object_token, dataset_object in dataset_objects.items():
-            obj = GazeTargetObject(object_token, dataset_object['bbox'], dataset_object['category'])
-            frame.add_obj(obj)
-            double, triple = check_looking(frame.peds, obj)  # オブジェクトを各視点が見ているか確認し，格納
-            duplicated_double += double
-            duplicated_triple += triple
+            # 歩行者の登録
+            ped_annotations: list = read_json(ped_record)
+            ped_annotation: dict
+            for ped_token, ped_annotation in ped_annotations.items():
+                if ped_token in not_use_ped:
+                    continue
+                ped = Pedestrian(ped_token, frame_id, ped_annotation['bbox'])
+                ped.set_gaze_point(ped_annotation['look'], ped_annotation['difficult'], ped_annotation['eyecontact'])
+                frame.add_ped(ped)
+            # オブジェクトの登録
+            dataset_objects: dict = read_json(args.obj_dataset + '/' + version_name + '/' + frame_id + '.json')
+            object_token: str
+            dataset_object: dict
+            for object_token, dataset_object in dataset_objects.items():
+                obj = GazeTargetObject(object_token, dataset_object['bbox'], dataset_object['category'])
+                frame.add_obj(obj)
+                double, triple = check_looking(frame.peds, obj)  # オブジェクトを各視点が見ているか確認し，格納
+                duplicated_double += double
+                duplicated_triple += triple
 
-        # frameごとの統計情報
-        frame.stat()
-        frames[frame_id] = frame
+            # frameごとの統計情報
+            frame.stat()
+            frames[frame_id] = frame
 
     os.makedirs(args.output, exist_ok=True)
     export_ped_obj_set(frames, args.output)
@@ -304,6 +306,7 @@ def main():
                 if len(gaze.gto) >= 2:
                     cnt_gaze_looking_duplicated += 1
     print(f"歩行者総数 -> {sum(cnt_peds)}")
+    print(f"フレーム数 -> {len(cnt_peds)}")
     if len(cnt_peds) > 1:
         print(f"フレームあたりの歩行者数 -> {statistics.mean(cnt_peds):.02f} \u00B1 {statistics.stdev(cnt_peds):.02f}")
     print(f"オブジェクト総数 -> {sum(cnt_objs)}")
