@@ -274,8 +274,8 @@ def main():
             frame.stat()
             frames[frame_id] = frame
 
-    os.makedirs(args.output, exist_ok=True)
-    export_ped_obj_set(frames, args.output)
+        os.makedirs(args.output+"/"+version_name, exist_ok=True)
+        export_ped_obj_set(frames, args.output+"/"+version_name)
 
     # 統計情報の表示
     cnt_peds = []
