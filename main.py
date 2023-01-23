@@ -213,6 +213,7 @@ def export_ped_obj_set(frames: list, output_dir: str) -> None:
             dst[ped.token] = {
                 'bbox' : ped.bbox,
                 'looking' : "Object",
+                'gto_token' : ped.gto.token,
                 'gto_bbox' : ped.gto.bbox,
                 'gto_center' : ped.gto.center,
                 'gto_category' : ped.gto.category
