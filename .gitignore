@@ -8,6 +8,8 @@ output0121_2/
 run.sh
 annotation
 ped_where_looking/
+render_car_looking/
+render_self_looking/
 
 # ---> macOS
 # General
