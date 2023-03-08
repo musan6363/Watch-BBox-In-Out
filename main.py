@@ -286,6 +286,20 @@ def main():
     cnt_looking_inside_obj = []
     cnt_gaze_points = 0
     cnt_gaze_looking_duplicated = 0
+
+    # 2人もしくは3人が同じ意見だった例
+    cnt_ped_looking_obj_double = 0  # アノテータ2人が同じ物体を見ていると判断した歩行者の人数
+    cnt_ped_looking_obj_triple = 0  # アノテータ3人が同じ物体を見ていると判断した歩行者の人数
+    cnt_ped_looking_out_double = 0  # アノテータ2人が外を見ていると判断した歩行者の人数
+    cnt_ped_looking_out_triple = 0  # アノテータ3人が外を見ていると判断した歩行者の人数
+    cnt_ped_looking_eye_double = 0  # アノテータ2人がアイコンタクトと判断した歩行者の人数
+    cnt_ped_looking_eye_triple = 0  # アノテータ3人がアイコンタクトと判断した歩行者の人数
+    cnt_ped_looking_dif_double = 0  # アノテータ2人がdifficultと判断した歩行者の人数
+    cnt_ped_looking_dif_triple = 0  # アノテータ3人がdifficultと判断した歩行者の人数
+    cnt_ped_looking_ins_double = 0  # アノテータ2人が画像内を見ていると判断した歩行者の人数（物体，アイコンタクト，difficultを除く）
+    cnt_ped_looking_ins_triple = 0  # アノテータ3人が画像内を見ていると判断した歩行者の人数（物体，アイコンタクト，difficultを除く）
+    cnt_barabara = 0  # アノテータの意見がバラバラ
+
     looking_multi_obj = []
     lmo = {}
     frame: Frame
@@ -302,10 +316,63 @@ def main():
         ped: Pedestrian
         for ped in frame.peds:
             cnt_gaze_points += len(ped.gaze)
+
+            tmp_obj_dict = {}
+            tmp_obj = 0
+            tmp_out = 0
+            tmp_eye = 0
+            tmp_dif = 0
+            tmp_ins = 0
+
             gaze: GazePoint
             for gaze in ped.gaze:
                 if len(gaze.gto) >= 2:
                     cnt_gaze_looking_duplicated += 1
+                
+                if gaze.is_eyecontact:
+                    tmp_eye += 1
+                elif gaze.is_difficult:
+                    tmp_dif += 1
+                elif gaze.is_inside_object:
+                    gobj: GazeTargetObject
+                    for gobj in gaze.gto:
+                        if gobj.token in tmp_obj_dict.keys():
+                            tmp_obj_dict[gobj.token] += 1
+                        else:
+                            tmp_obj_dict[gobj.token] = 1
+                        if tmp_obj_dict[gobj.token] > tmp_obj:
+                            tmp_obj = tmp_obj_dict[gobj.token]
+                elif not gaze.is_inside_frame:
+                    tmp_out += 1
+                else:
+                    # 画像内を見ているが物体に重なっていない
+                    tmp_ins += 1
+
+            # アノテータの判断の曖昧さを確認
+            if tmp_obj == 2:
+                cnt_ped_looking_obj_double += 1
+            elif tmp_obj == 3:
+                cnt_ped_looking_obj_triple += 1
+            elif tmp_out == 2:
+                cnt_ped_looking_out_double += 1
+            elif tmp_out == 3:
+                cnt_ped_looking_out_triple += 1
+            elif tmp_eye == 2:
+                cnt_ped_looking_eye_double += 1
+            elif tmp_eye == 3:
+                cnt_ped_looking_eye_triple += 1
+            elif tmp_dif == 2:
+                cnt_ped_looking_dif_double += 1
+            elif tmp_dif == 3:
+                cnt_ped_looking_dif_triple += 1
+            elif tmp_ins == 2:
+                cnt_ped_looking_ins_double += 1
+            elif tmp_ins == 3:
+                cnt_ped_looking_ins_triple += 1
+            else:
+                cnt_barabara += 1
+
+
     print(f"歩行者総数 -> {sum(cnt_peds)}")
     print(f"フレーム数 -> {len(cnt_peds)}")
     if len(cnt_peds) > 1:
@@ -323,6 +390,18 @@ def main():
     print(f"1つの視点が複数のオブジェクト領域内にある数 -> {cnt_gaze_looking_duplicated}点({(cnt_gaze_looking_duplicated*100/cnt_gaze_points):.02f}%)")
     print(f"2つ以上のオブジェクトが多数決で見ていると判断された数 -> {len(looking_multi_obj)}個")
     export_json(lmo, args.output+'/looking_multi_obj.json')
+
+    print(cnt_ped_looking_obj_double)
+    print(cnt_ped_looking_obj_triple)
+    print(cnt_ped_looking_out_double)
+    print(cnt_ped_looking_out_triple)
+    print(cnt_ped_looking_eye_double)
+    print(cnt_ped_looking_eye_triple)
+    print(cnt_ped_looking_dif_double)
+    print(cnt_ped_looking_dif_triple)
+    print(cnt_ped_looking_ins_double)
+    print(cnt_ped_looking_ins_triple)
+    print(cnt_barabara)
 
 if __name__ == "__main__":
     main()
